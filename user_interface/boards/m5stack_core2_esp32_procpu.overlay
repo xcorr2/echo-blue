@@ -1,0 +1,63 @@
+/*
+ * Device tree overlay for M5 Core 2 ILI9342C display
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	chosen {
+		zephyr,display = &ili9342c;
+	};
+
+	mipi_dbi {
+		compatible = "zephyr,mipi-dbi-spi";
+		spi-dev = <&spi3>;
+		dc-gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;	/* DC pin */
+		reset-gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;	/* Reset pin - may need AXP192 control */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ili9342c: ili9342c@0 {
+			compatible = "ilitek,ili9342c";
+			reg = <0>;
+			//spi-max-frequency = <25000000>; /* 25 MHz max for ILI9342C */
+			
+			pixel-format = <0>; /* RGB565 */
+			rotation = <0>;
+			width = <320>;
+			height = <240>;
+			//display-inversion;
+		};
+	};
+};
+
+&spi3 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;	/* CS pin */
+};
+
+&i2c0 {
+    status = "okay";
+    clock-frequency = <400000>; 
+    sda-gpios = <&gpio0 21 (GPIO_OPEN_DRAIN | GPIO_PULL_UP)>;
+    scl-gpios = <&gpio0 22 (GPIO_OPEN_DRAIN | GPIO_PULL_UP)>;
+    
+    ft5336_touch: ft5336@38 {
+        compatible = "focaltech,ft5336";
+        reg = <0x38>;
+        status = "okay";
+        int-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+        /* Remove reset GPIO for now to avoid AXP192 issues */
+    };
+};
+
+/* Ensure both GPIO banks are enabled */
+&gpio0 {
+    status = "okay";
+};
+
+&gpio1 {
+    status = "okay";
+};

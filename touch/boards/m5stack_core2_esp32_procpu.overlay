@@ -1,0 +1,28 @@
+/*
+ * Device tree overlay for M5 Core 2 FT5336 touchscreen
+ * Fix I2C configuration issues
+ */
+
+&i2c0 {
+    status = "okay";
+    clock-frequency = <400000>; 
+    sda-gpios = <&gpio0 21 (GPIO_OPEN_DRAIN | GPIO_PULL_UP)>;
+    scl-gpios = <&gpio0 22 (GPIO_OPEN_DRAIN | GPIO_PULL_UP)>;
+    
+    ft5336_touch: ft5336@38 {
+        compatible = "focaltech,ft5336";
+        reg = <0x38>;
+        status = "okay";
+        int-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+        /* Remove reset GPIO for now to avoid AXP192 issues */
+    };
+};
+
+/* Ensure both GPIO banks are enabled */
+&gpio0 {
+    status = "okay";
+};
+
+&gpio1 {
+    status = "okay";
+};
