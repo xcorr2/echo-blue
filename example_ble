@@ -1,0 +1,168 @@
+/*
+ * Copyright (c) 2018 Henrik Brix Andersen <henrik@brixandersen.dk>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/types.h>
+#include <stddef.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/sys/util.h>
+
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/hci.h>
+
+#include <stdint.h>
+#include <math.h>
+
+#ifndef IBEACON_RSSI
+#define IBEACON_RSSI 0xc8
+#endif
+#define OFFSET 5
+/*
+ * Set iBeacon demo advertisement data. These values are for
+ * demonstration only and must be changed for production environments!
+ *
+ * UUID:  18ee1516-016b-4bec-ad96-bcb96d166e97
+ * Major: 0
+ * Minor: 0
+ * RSSI:  -56 dBm
+ */
+ /* Mutable portion of advert. */
+ static uint8_t ad_payload[25] = {
+    0x79, 0x12,                        // Manufactuer ID: 0x0059 (Nordic Semi)
+    0x02, 0x15,               // Custom ID.
+    0x01,                              // Sequence counter. 
+    0xF4, 0x01, 0x04, 0x05, 0x06,      // PADDING
+    0x08, 0x07, 0x06      ,            // ULTRASONIC VALUES (meters, millimeter high, millimeter low)
+    0x00, 0x00, 0x00, 0x00, 0x00,       // PADDING
+    0xFF, 00, 00, 00, 00, 00, 00                               // Extra ID byte.
+};
+
+/* Immutable portion of advert. */
+// REF: https://github.com/zephyrproject-rtos/zephyr/blob/main/samples/bluetooth/iBeacon/
+static struct bt_data ad[] = {
+    BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_NO_BREDR),
+    BT_DATA(BT_DATA_MANUFACTURER_DATA, ad_payload, sizeof(ad_payload))
+};
+
+
+
+#define MAX_BCD_DIGITS 10  // Total number of digits (before + after decimal)
+
+typedef struct {
+    uint8_t bcd[(MAX_BCD_DIGITS + 1) / 2];  // 2 digits per byte
+    int len;                                // number of BCD bytes used
+} BCDResult;
+
+BCDResult double_to_bcd(double num) {
+    BCDResult result = { .bcd = {0}, .len = 0 };
+
+    if (num < 0) num = -num;
+
+    uint64_t int_part = (uint64_t)num;
+    double frac_part = num - int_part;
+
+    char str[32];
+    int idx = 0;
+
+    // Convert integer part to string (in reverse, then correct)
+    if (int_part == 0) {
+        str[idx++] = '0';
+    } else {
+        char temp[20];
+        int temp_idx = 0;
+        while (int_part > 0) {
+            temp[temp_idx++] = '0' + (int_part % 10);
+            int_part /= 10;
+        }
+        for (int i = temp_idx - 1; i >= 0; i--) {
+            str[idx++] = temp[i];
+        }
+    }
+
+    // Convert fractional part to up to 9 digits
+    for (int i = 0; i < 9; i++) {
+        frac_part *= 10.0;
+        int digit = (int)frac_part;
+        str[idx++] = '0' + digit;
+        frac_part -= digit;
+    }
+
+    str[idx] = '\0';
+
+    // Convert string to BCD
+    int j = 0;
+    for (int i = 0; i < idx && j < MAX_BCD_DIGITS; i++) {
+        uint8_t digit = str[i] - '0';
+        if (j % 2 == 0) {
+            result.bcd[j / 2] = (digit << 4);
+        } else {
+            result.bcd[j / 2] |= digit;
+        }
+        j++;
+    }
+
+    result.len = (j + 1) / 2;
+    return result;
+}
+
+
+
+static void bt_ready(int err)
+{
+    if (err) {
+	printk("Bluetooth init failed (err %d)\n", err);
+	return;
+    }
+
+    printk("Bluetooth initialized\n");
+
+    err = bt_le_adv_start(BT_LE_ADV_NCONN, ad, ARRAY_SIZE(ad), NULL, 0);
+    if (err) {
+	printk("Advertising failed to start (err %d)\n", err);
+	return;
+    }
+
+    printk("iBeacon started\n");
+
+    bt_le_adv_stop();    
+
+    double num = 27.500685;
+    uint8_t* bcd_array;
+
+    BCDResult a = double_to_bcd(num);
+
+    for (int i = OFFSET; i < a.len + OFFSET; i++) {
+        ad_payload[i] = (uint8_t)a.bcd[i-OFFSET];
+    }
+
+    double num2 = 153.015555;
+    uint8_t* bcd_array2;
+
+    BCDResult b = double_to_bcd(num2);
+
+    for (int j = OFFSET+a.len; j < b.len + OFFSET + a.len-1; j++) {
+        ad_payload[j] = (uint8_t)b.bcd[j-OFFSET-a.len];
+    }
+    printf("success\n");
+
+    /* Restart advertising. */
+    err = bt_le_adv_start(BT_LE_ADV_NCONN, ad, ARRAY_SIZE(ad), NULL, 0);
+}
+
+
+
+int main(void)
+{
+	int err;
+
+	printk("Starting iBeacon Demo\n");
+
+	/* Initialize the Bluetooth Subsystem */
+	err = bt_enable(bt_ready);
+	if (err) {
+		printk("Bluetooth init failed (err %d)\n", err);
+	}
+	return 0;
+}
