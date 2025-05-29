@@ -8,7 +8,7 @@ traffic_api_key = '3e83add325cbb69ac4d8e5bf433d770b'
 
 tagoIOurl = 'https://api.us-e1.tago.io/data'
 headers = {
-    'device-token': 'fa3edc08-5f30-48b0-9eb1-5fad91a22348',
+    'device-token': 'DEVICE ID',
     'Content-Type': 'application/json'
 }
 
