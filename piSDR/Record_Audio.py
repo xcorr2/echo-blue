@@ -13,13 +13,15 @@ def is_mounted(mount):
         return any(mount in line for line in f)
 
 def main():
-    if len(sys.argv) == 3:    
+    if len(sys.argv) == 4:    
         freq = sys.argv[1]
-        length = sys.argv[2]
+        length = sys.argv[2] 
+        savetomp3 = sys.argv[3].strip().lower() == "true"
     else:
-        print("Usage error (./Record_Audio.py freq len)")
+        print("Usage error: ./Record_Audio.py freq len mp3-(t/f)")
         return 1
 
+    length = str(int(length) + 2) # Add 2 seconds to allow for setup
     recTime = datetime.now().strftime("%Y-%m-%d_%H.%M")
     fileName = f"./Recordings/Recording_{recTime}_{freq}MHz.mp3"
     command = (
@@ -28,7 +30,8 @@ def main():
         f"lame output.wav {fileName}"
     )
 
-    print(command)
+    #print(command)
+    print("Recording in progress...")
 
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     
@@ -36,8 +39,10 @@ def main():
         command_2 = f"python3 Audio_Dashboard.py {freq} {fileName}"
         result_2 = subprocess.run(command_2, shell=True, capture_output=True, text=True)
         print("STDOUT:", result_2.stdout)
-        print("STDERR:", result_2.stderr)
-        if result_2.returncode == 0: # Transfer to mp3 player
+        #print("STDERR:", result_2.stderr)
+
+        if result.returncode == 0 and savetomp3==True: # Transfer to mp3 player
+            print("Saving to mp3 player")
             dest_path = f"/mnt/mp3player/{os.path.basename(fileName)}"
             if not is_mounted(mount_point): # Mount the mp3 if not already mounted
                 try:
