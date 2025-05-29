@@ -118,8 +118,15 @@ def run_ble_async(ble_detected_event):
                 latitude, longitude = convert_to_coords(result)
                 upload_GPS(latitude, longitude)  # Push to tago
                 ble_detected_event.set()  # Signal that BLE was found
+                # Drain remaining queue items (prevents multiple triggers from same event)
+                while not device_queue.empty():
+                    try:
+                        device_queue.get_nowait()
+                    except queue.Empty:
+                        break
             except asyncio.TimeoutError:
-                print("BLE scan timed out.")
+                #print("BLE scan timed out.")
+                time.sleep(1)
 
     asyncio.run(inner())
 
@@ -127,6 +134,8 @@ def ble_scan():
     print("Scanning BLE...")
     #eventDetected = False
     total_sleep = 0
+    cooldown_seconds = 60  # Cooldown period to avoid multiple recordings
+    last_trigger_time = 0
     ble_detected_event = threading.Event()
 
     # Start BLE async scanner in a new thread
@@ -138,10 +147,14 @@ def ble_scan():
         if scan_stop_event.is_set():
             return
         elif ble_detected_event.is_set():
-             frequency, seconds, saveMP3, emergency = get_SDR_params() # Get SDR recording params from dashboard
-             print(f"Recording params: freq - {frequency}MHz, duration - {seconds}s, savingToMP3Player - {saveMP3}")
-             record_command = f"python3 Record_Audio.py {frequency} {seconds} {saveMP3}"
-             subprocess.run(record_command, shell=True)
+            current_time = time.time()
+            if current_time - last_trigger_time >= cooldown_seconds:
+                frequency, seconds, saveMP3, emergency = get_SDR_params() # Get SDR recording params from dashboard
+                print(f"Recording params: freq - {frequency}MHz, duration - {seconds}s, savingToMP3Player - {saveMP3}")
+                record_command = f"python3 Record_Audio.py {frequency} {seconds} {saveMP3}"
+                subprocess.run(record_command, shell=True)
+            
+            ble_detected_event.clear()
         
         time.sleep(2)
         total_sleep += 2
