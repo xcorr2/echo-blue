@@ -19,14 +19,15 @@ piHeaders = {
 scan_stop_event = threading.Event() # Create a stop event
 
 def get_SDR_params():
-    requestURL = "https://api.us-e1.tago.io/data?variables[]=frequency&variables[]=seconds&variables[]=saveMP3&query=last_item"
+    requestURL = "https://api.us-e1.tago.io/data?variables[]=frequency&variables[]=seconds&variables[]=saveMP3&variables[]=emergency&query=last_item"
     responseGET = requests.request("GET", requestURL, headers=piHeaderGET)
     if responseGET.status_code == 200:
         responseGET = responseGET.json()
         frequency = responseGET["result"][0]["value"]
         seconds = responseGET["result"][1]["value"]
         saveMP3 = responseGET["result"][2]["value"]
-        return frequency, seconds, saveMP3
+        emergency = responseGET["result"][3]["value"]
+        return frequency, seconds, saveMP3, emergency
     else:
         print("Error retrieving recording params from TagoIO")
         exit()
@@ -43,6 +44,35 @@ def upload_GPS(latitude, longitude):
     ]
     response = requests.post(piURL, headers=piHeaders, data=json.dumps(gpsData))
     print(f"GPS updated: {latitude}, {longitude} | {response.text}")
+
+def dash_scan():
+    print("Checking for emergency...")
+    total_sleep = 0
+    while True:
+        if scan_stop_event.is_set():
+            return
+        else:
+            if total_sleep == 10: # Run command every 10s
+                 apiCommand = "python3 QLD_Fire_API.py"
+                 frequency, seconds, saveMP3, emergency = get_SDR_params() # Check emergency state on dash
+                 if int(emergency) != 0:
+                     print(f"Recording params: freq - {frequency}MHz, duration - {seconds}s, savingToMP3Player - {saveMP3}")
+                     record_command = f"python3 Record_Audio.py {frequency} {seconds} {saveMP3}"
+                     subprocess.run(record_command, shell=True)
+                     emergencyComplete = [
+                         {
+                           "variable" : "emergency",
+                           "value" : 0
+                         }
+                     ]
+                     response = requests.post(piURL, headers=piHeaders, data=json.dumps(emergencyComplete))
+                     print("Emergency recording complete")
+                 
+                 total_sleep = 0 # Reset timer
+        
+            time.sleep(2)
+            total_sleep += 2
+
 
 def emergency_apis():
     print("APIs running...")
@@ -108,7 +138,7 @@ def ble_scan():
         if scan_stop_event.is_set():
             return
         elif ble_detected_event.is_set():
-             frequency, seconds, saveMP3 = get_SDR_params() # Get SDR recording params from dashboard
+             frequency, seconds, saveMP3, emergency = get_SDR_params() # Get SDR recording params from dashboard
              print(f"Recording params: freq - {frequency}MHz, duration - {seconds}s, savingToMP3Player - {saveMP3}")
              record_command = f"python3 Record_Audio.py {frequency} {seconds} {saveMP3}"
              subprocess.run(record_command, shell=True)
@@ -129,7 +159,10 @@ def main():
     ble_tid.start() # Start BLE scanning
     
     api_tid = threading.Thread(target=emergency_apis, daemon=True)
-    api_tid.start() # Start QLD emergency database apis 
+    api_tid.start() # Start QLD emergency database apis
+
+    dash_tid = threading.Thread(target=dash_scan, daemon=True)
+    dash_tid.start() # Start dashboard HTTP scanning (event detection) 
     
     try:
         while ble_tid.is_alive():
