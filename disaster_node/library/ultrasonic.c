@@ -79,6 +79,7 @@ void ultrasonic() {
         .dev = DEVICE_DT_GET(HCSR04_2_NODE),
     };
 
+    k_msleep(2000);
     while (1) {
         // Send LE BT advertisement at a fixed interval.
         update_adv_data(fixture, 1);

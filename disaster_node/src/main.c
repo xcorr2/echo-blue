@@ -181,13 +181,11 @@ static void update_adv_data(struct gps_values* rx_data) {
     /* Restart advertising. */
     bt_le_adv_start(BT_LE_ADV_NCONN, ad, ARRAY_SIZE(ad), NULL, 0);
     k_free(rx_data);
-    /*k_msleep(1000);
-    k_msleep(1000);
+    k_msleep(5000);
     bt_le_adv_stop();    
-
     while(1){
         k_msleep(100000);
-    }*/
+    }
 }
 
 int main(void)
@@ -205,7 +203,6 @@ int main(void)
     k_fifo_init(&kalman_us_fifo);
 	k_fifo_init(&kalman_rs_fifo);
 	k_fifo_init(&ble_fifo);
-    k_sem_init(&signal, 0, 1);
 
     //k_fifo_init(&signal_fifo);
 
@@ -253,21 +250,20 @@ int gps_test_thread(void)
 
         //status = get_gps_data(&latitude, &longitude);
 
-        printf("GPS Coordinates (%d Sources): %.6f, %.6f\n", 
-            status, latitude, longitude);
+        //printf("GPS Coordinates (%d Sources): %.6f, %.6f\n", status, latitude, longitude);
         if (k_sem_take(&signal, K_MSEC(50)) != 0) {
-            printk("Input data not available!");
+            //printk("Input data not available!");
         } else {
-        /* fetch available data */
-        
-        struct gps_values tx_data;
-        tx_data.gps_values[0] = 27.500685;
-        tx_data.gps_values[1] = 153.015555;
+            /* fetch available data */
+            
+            struct gps_values tx_data;
+            tx_data.gps_values[0] = 27.500685;
+            tx_data.gps_values[1] = 153.015555;
 
-        size_t size = sizeof(struct gps_values);
-        char *mem_ptr = k_malloc(size);
-        memcpy(mem_ptr, &tx_data, size);
-        k_fifo_put(&ble_fifo, mem_ptr);
+            size_t size = sizeof(struct gps_values);
+            char *mem_ptr = k_malloc(size);
+            memcpy(mem_ptr, &tx_data, size);
+            k_fifo_put(&ble_fifo, mem_ptr);
         }
 
 
@@ -286,10 +282,6 @@ K_THREAD_DEFINE(gps_test_thread_id, TEST_THREAD_STACK_SIZE,
     gps_test_thread, NULL, NULL, NULL,
     GPS_TEST_THREAD_PRIORITY, 0, 0);
 
-//K_THREAD_DEFINE(gps_thread_id, GPS_THREAD_STACK_SIZE,
+//(gps_thread_id, GPS_THREAD_STACK_SIZE,
 //    GPS_thread, NULL, NULL, NULL,
 //    GPS_THREAD_PRIORITY, 0, 0);
-
-//K_THREAD_DEFINE(adv_thread_id, ADV_THREAD_STACK_SIZE,
-//    adv_thread, NULL, NULL, NULL,
-//    ADV_THREAD_PRIORITY, 0, 0);

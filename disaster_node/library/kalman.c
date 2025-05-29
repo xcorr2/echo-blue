@@ -526,6 +526,9 @@ void update(double** obs, Kalman* filter)
 * kalman_filter()
 * thread function that handles creation of kalman filter as well as updating
 */    
+
+#define UP_THRESHOLD 0.4
+#define LOW_THRESHOLD 0.2
 void kalman_filter(int x, int y, int vx, int vy, int dt, int num_steps) {
     Kalman* filter = (Kalman*)k_malloc(sizeof(Kalman));
     // init dimensions
@@ -571,11 +574,14 @@ void kalman_filter(int x, int y, int vx, int vy, int dt, int num_steps) {
     obs[2][0] = 1;
     obs[3][0] = 1;
     //update(obs, filter);
-    double orig_x = 0;
-    double orig_y = 0;
-    double x_diff = 0.3;
-    double y_diff = 0.3;
-
+    double orig_x = 0.03;
+    double orig_y = 0.03;
+    double x_diff = 0.02;
+    double y_diff = 0.02;
+    int flag2 = 1;
+    int flag3 = 1;
+    double prev_x;
+    double prev_y;
     while(1) {
         //printf("%d\n",k_heap_stats_get());
 
@@ -610,26 +616,56 @@ void kalman_filter(int x, int y, int vx, int vy, int dt, int num_steps) {
         }
         // check if any new observations were made
         if (flag) {
-            // new observation, update filter and reset flag
-            flag = 0;
-            //printf("obs:\n%f\n%f\n%f\n%f\n", obs[0][0], obs[1][0], obs[2][0], obs[3][0]);
             update(obs, filter);
 
-            x_diff -= filter->x_hat[0][0] - orig_x;
-            y_diff -= filter->x_hat[0][0] - orig_y;
-
-            if (x_diff < 0 || y_diff < 0) {
-                k_sem_give(&signal);
+            if (flag2) {
+                flag2 = 0;
+                orig_x = filter->x_hat[0][0];
+                orig_y = filter->x_hat[1][0]; 
+                prev_x = filter->x_hat[0][0];
+                prev_y = filter->x_hat[1][0]; 
+                printf("orig: %f, %f\n",filter->x_hat[0][0], filter->x_hat[1][0]);
             }
-            //printf("x: %f, y: %f\n", filter->x_hat[0][0], filter->x_hat[1][0]);
+            // new observation, update filter and reset flag
+            flag = 0;
+            //printf("diff: ");
+            //printf("obs:\n%f\n%f\n%f\n%f\n", obs[0][0], obs[1][0], obs[2][0], obs[3][0]);
+            //update(obs, filter);
+
+            x_diff = (filter->x_hat[0][0] - orig_x);
+            y_diff = (filter->x_hat[1][0] - orig_y);
+            x_diff = (x_diff < 0) ? -x_diff : x_diff;
+            y_diff = (y_diff < 0) ? -y_diff : y_diff;
+            //x_diff = x_diff*1000;
+            //y_diff = y_diff*1000;
+
+              //  int magnitude = (num < 0) ? -num : num;
+
+            //printf("------ diff %f %f -------\n", x_diff, y_diff);
+            /*printf("------- %f, check: %d---------\n", x_diff, ((int)(x_diff*10000) > (int)(0.15*1000)));
+            k_msleep(500);
+            printf("------- %d %d---------\n", (int)(x_diff*10000), (int)(0.015*1000));
+            k_msleep(500);*/
+           // if (((int)(x_diff*1000) > (int)(0.015*1000)) || ((int)y_diff*1000 > (int)(0.015*1000))) {
+           if (x_diff > 0.01 || y_diff > 0.01) {
+                if (flag3){
+                    printf("!!!!!!!!!EARTHQUAKE!!!!!!!!!\n");
+                    k_sem_give(&signal);
+                    flag3 = 0;
+                }
+            }
+            printf("x: %f, y: %f\n", filter->x_hat[0][0], filter->x_hat[1][0]);
             k_free(rx_data);
         }
         k_msleep(500);
+        prev_x = filter->x_hat[0][0];
+        prev_y = filter->x_hat[1][0];
     }
 }    
 
 // initalise filter
 void create_filter()
 {
-        kalman_filter(0,0,0,0,1,100);
+    k_sem_init(&signal, 0, 1);
+    kalman_filter(0,0,0,0,1,100);
 }
