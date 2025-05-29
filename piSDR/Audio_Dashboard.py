@@ -6,7 +6,7 @@ import os
 # Dashboard details - reference: https://api.docs.tago.io/#85343179-19bb-455c-8f45-6705948b3966
 tagoIOurl = 'https://api.us-e1.tago.io/files'
 headers = {
-    'Authorization' : '60e54fb1-f3cf-41bb-b515-eb123deb53ea'
+    'Authorization' : 'API KEY'
 }
 
 
