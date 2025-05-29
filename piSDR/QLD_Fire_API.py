@@ -45,8 +45,8 @@ def send_to_tago(jsonLoad, d_type):
         data = jsonLoad
         
     response = requests.post(tagoIOurl, headers=headers, data=json.dumps(data))
-    print(f"Status Code: {response.status_code}")
-    print("Response Body:", response.text)
+    #print(f"Status Code: {response.status_code}")
+    #print("Response Body:", response.text)
 
 
 
@@ -101,6 +101,7 @@ if responseTMR.status_code == 200:
     #num = 0
     tago_payload = [{"variable": "road_incident", "value": incident} for incident in road_events]
     send_to_tago(tago_payload, 0)
+    print("Emergency data from QLD database updated") 
     
 else:
     print("Request failed:", responseTMR.status_code, responseTMR.text)
