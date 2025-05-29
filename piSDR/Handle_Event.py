@@ -9,10 +9,10 @@ from bleak import BleakScanner
 
 piURL = 'https://api.us-e1.tago.io/data'
 piHeaderGET = {
-    'device-token': '7c8e65cf-e89a-4350-bf2c-82d76db291dd'
+    'device-token': 'API KEY'
 }
 piHeaders = {
-    'device-token': '7c8e65cf-e89a-4350-bf2c-82d76db291dd',
+    'device-token': 'DEVICE ID',
     'Content-Type': 'application/json'
 }
 
