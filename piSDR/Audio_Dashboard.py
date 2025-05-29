@@ -65,7 +65,7 @@ def upload_mp3_to_tago(f, filePath):
                 # Final Step: Send tagoIO file URL to dashboard variable
                 piURL = 'https://api.us-e1.tago.io/data'
                 piHeaders = {
-                    'device-token': '7c8e65cf-e89a-4350-bf2c-82d76db291dd',
+                    'device-token': 'DEVICE KEY',
                     'Content-Type': 'application/json'
                 }
                 piFileData = [
